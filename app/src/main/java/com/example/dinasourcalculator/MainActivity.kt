@@ -35,7 +35,13 @@ fun AppNavigation() {
             )
         }
         composable("history") {
-            HistoryScreen(navController = navController, historyList = historyList)
+            HistoryScreen(
+                navController = navController,
+                initialHistoryList = historyList,
+                onDeleteItem = { item -> historyList.remove(item) }, // Remove single entry
+                onClearHistory = { historyList.clear() } // Clear all history
+            )
         }
     }
 }
+

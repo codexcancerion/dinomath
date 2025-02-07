@@ -3,15 +3,8 @@ package com.example.dinasourcalculator.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,8 +33,7 @@ fun CalculatorScreen(navController: NavController, historyList: List<String>, on
                 fontSize = 32.sp,
                 color = Color.DarkGray,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .padding(bottom = 10.dp)
+                modifier = Modifier.padding(bottom = 10.dp)
             )
 
             Text(
@@ -69,7 +61,7 @@ fun CalculatorScreen(navController: NavController, historyList: List<String>, on
             )
 
             val buttons = listOf(
-                listOf("+ Pos", "- Neg", "C", "÷"),
+                listOf("", "+/-", "C", "÷"),
                 listOf("7", "8", "9", "×"),
                 listOf("4", "5", "6", "-"),
                 listOf("1", "2", "3", "+"),
@@ -79,36 +71,33 @@ fun CalculatorScreen(navController: NavController, historyList: List<String>, on
             buttons.forEach { row ->
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     row.forEach { label ->
-                        val buttonColor = when (label) {
-                            "C", "=" -> Cyan40
-                            else -> Blue40
-                        }
+                        if (label.isNotEmpty()) {
+                            val buttonColor = when (label) {
+                                "C", "=" -> Cyan40
+                                else -> Blue40
+                            }
 
-                        Button(
-                            onClick = {
-                                val newInput = handleButtonClick(input, label, onSaveHistory)
-                                if (label == "=") {
-                                    result = evaluateExpression(input)
-                                    onSaveHistory("$input = $result")
-                                } else if (label == "C") {
-                                    input = ""
-                                    result = ""
-                                } else {
-                                    input = newInput
-                                }
-                            },
-                            modifier = Modifier
-                                .padding(6.dp)
-                                .size(70.dp)
-                                .background(buttonColor, CircleShape),
-                            shape = CircleShape,
-                            colors = ButtonColors(Blue40, Color.White, Blue40, Color.White)
-                        ) {
-                            Text(
-                                text = label,
-                                fontSize = 16.sp,
-                                color = Color.White
-                            )
+                            Button(
+                                onClick = {
+                                    if (label == "=") {
+                                        result = evaluateExpression(input)
+                                        onSaveHistory("$input = $result")
+                                    } else {
+                                        input = handleButtonClick(input, label)
+                                        if (label == "C") result = ""
+                                    }
+                                },
+                                modifier = Modifier
+                                    .padding(6.dp)
+                                    .size(70.dp)
+                                    .background(buttonColor, CircleShape),
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(Blue40)
+                            ) {
+                                Text(text = label, fontSize = 16.sp, color = Color.White)
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.size(70.dp)) // Placeholder for empty button slot
                         }
                     }
                 }
@@ -122,24 +111,43 @@ fun CalculatorScreen(navController: NavController, historyList: List<String>, on
                     .padding(top = 16.dp)
                     .fillMaxWidth(),
                 shape = CircleShape,
-                colors = ButtonColors(Color.White, Blue40, Color.White, Blue40)
+                colors = ButtonDefaults.buttonColors(Color.White)
             ) {
                 Text(text = "View History", fontSize = 18.sp, color = Color.Black)
             }
         }
     }
 }
-
-fun handleButtonClick(currentInput: String, button: String, onSaveHistory: (String) -> Unit): String {
+// Function to handle button clicks
+fun handleButtonClick(currentInput: String, button: String): String {
     return when (button) {
         "C" -> "" // Clear input
-        "+ Positive" -> currentInput.toggleSign() // Change to positive
-        "- Negative" -> currentInput.toggleSign() // Change to negative
-        "=" -> currentInput // "=" button doesn't change input
-        else -> currentInput + button // Add the button text to current input
+        "+/-" -> toggleLastNumberSign(currentInput) // Toggle last number's sign
+        "=" -> currentInput // "=" does not change input
+        "+", "-", "×", "÷", "%" -> handleOperatorInput(currentInput, button) // Handle operators
+        else -> currentInput + button // Append other button values
     }
 }
 
+// Function to toggle the sign of the last number in the input
+fun toggleLastNumberSign(input: String): String {
+    val regex = """(-?\d+\.?\d*)$""".toRegex()
+    return regex.replace(input) { match ->
+        val num = match.value
+        if (num.startsWith("-")) num.substring(1) else "-$num"
+    }
+}
+
+// Function to correctly handle operators (+, -, ×, ÷, %)
+fun handleOperatorInput(input: String, operator: String): String {
+    if (input.isEmpty() && operator != "-") return input // Don't allow standalone operators except for negative
+    if (input.endsWith("+") || input.endsWith("-") || input.endsWith("×") || input.endsWith("÷") || input.endsWith("%")) {
+        return input.dropLast(1) + operator // Replace last operator
+    }
+    return input + operator // Append operator
+}
+
+// Function to evaluate expressions
 fun evaluateExpression(expression: String): String {
     return try {
         val cleanExpr = expression.replace("×", "*").replace("÷", "/")
@@ -150,58 +158,65 @@ fun evaluateExpression(expression: String): String {
     }
 }
 
+// Function to evaluate mathematical expressions correctly
 fun evaluateMathExpression(expression: String): Double {
     val tokens = mutableListOf<String>()
     var num = StringBuilder()
+    var lastWasOperator = true
 
     for (char in expression) {
         if (char.isDigit() || char == '.') {
             num.append(char)
+            lastWasOperator = false
         } else if (char in listOf('+', '-', '*', '/', '%')) {
-            if (num.isNotEmpty()) {
-                tokens.add(num.toString())
-                num = StringBuilder()
+            if (char == '-' && lastWasOperator) {
+                num.append(char) // Handle negative numbers correctly
+            } else {
+                if (num.isNotEmpty()) {
+                    tokens.add(num.toString())
+                    num = StringBuilder()
+                }
+                tokens.add(char.toString())
+                lastWasOperator = true
             }
-            tokens.add(char.toString())
         }
     }
-
     if (num.isNotEmpty()) {
         tokens.add(num.toString())
     }
 
-    val operatorPrecedence = listOf('*', '/', '%')
+    // Evaluate multiplication, division, and modulus first
     val resultStack = Stack<Double>()
+    val operatorStack = Stack<String>()
+    val precedence = mapOf("*" to 2, "/" to 2, "%" to 2, "+" to 1, "-" to 1)
 
-    var i = 0
-    while (i < tokens.size) {
-        val token = tokens[i]
-        if (token in operatorPrecedence.map { it.toString() }) {
-            val left = resultStack.pop()
-            val operator = token[0]
-            val right = tokens[++i].toDouble()
-            when (operator) {
-                '*' -> resultStack.push(left * right)
-                '/' -> resultStack.push(left / right)
-                '%' -> resultStack.push(left % right)
+    for (token in tokens) {
+        if (token in precedence.keys) {
+            while (!operatorStack.isEmpty() && precedence[operatorStack.peek()]!! >= precedence[token]!!) {
+                applyOperation(resultStack, operatorStack.pop())
             }
+            operatorStack.push(token)
         } else {
-            if (i == 0 || tokens[i - 1] in operatorPrecedence.map { it.toString() }) {
-                resultStack.push(token.toDouble())
-            }
+            resultStack.push(token.toDouble())
         }
-        i++
     }
 
-    val finalResult = resultStack.reduce { acc, number -> acc + number }
+    while (!operatorStack.isEmpty()) {
+        applyOperation(resultStack, operatorStack.pop())
+    }
 
-    return finalResult
+    return resultStack.pop()
 }
 
-fun String.toggleSign(): String {
-    return if (this.isNotEmpty() && this[0] == '-') {
-        this.substring(1)
-    } else {
-        "-$this"
+// Helper function to apply operations
+fun applyOperation(stack: Stack<Double>, operator: String) {
+    val right = stack.pop()
+    val left = stack.pop()
+    when (operator) {
+        "+" -> stack.push(left + right)
+        "-" -> stack.push(left - right)
+        "*" -> stack.push(left * right)
+        "/" -> stack.push(left / right)
+        "%" -> stack.push(left % right)
     }
 }

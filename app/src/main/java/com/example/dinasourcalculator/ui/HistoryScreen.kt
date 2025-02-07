@@ -1,17 +1,9 @@
 package com.example.dinasourcalculator.ui
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,11 +14,15 @@ import androidx.navigation.NavController
 import com.example.dinasourcalculator.ui.theme.Blue40
 
 @Composable
-fun HistoryScreen(navController: NavController, historyList: List<String>) {
-    // Background color for the entire screen
-    Surface(
-        color = Color(0xFF080C18)
-    ) {
+fun HistoryScreen(
+    navController: NavController,
+    initialHistoryList: List<String>,
+    onDeleteItem: (String) -> Unit,
+    onClearHistory: () -> Unit
+) {
+    var historyList by remember { mutableStateOf(initialHistoryList) }
+
+    Surface(color = Color(0xFF080C18)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -39,32 +35,69 @@ fun HistoryScreen(navController: NavController, historyList: List<String>) {
                 fontSize = 32.sp,
                 color = Color.Gray,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .padding(bottom = 10.dp)
+                modifier = Modifier.padding(bottom = 10.dp)
             )
 
-            historyList.forEach { historyItem ->
+            if (historyList.isEmpty()) {
                 Text(
-                    text = historyItem,
-                    fontSize = 25.sp,
+                    text = "No history available",
+                    fontSize = 20.sp,
                     color = Color.White,
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .fillMaxWidth())
+                    modifier = Modifier.padding(16.dp)
+                )
+            } else {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    historyList.forEach { historyItem ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = historyItem,
+                                fontSize = 20.sp,
+                                color = Color.White,
+                                modifier = Modifier.weight(1f) // Allow text to take available space
+                            )
+
+                            Button(
+                                onClick = {
+                                    historyList = historyList - historyItem
+                                    onDeleteItem(historyItem) // Remove from actual history
+                                },
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(Color.Red),
+                                modifier = Modifier.padding(start = 8.dp)
+                            ) {
+                                Text(text = "X", color = Color.White, fontSize = 14.sp)
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Back button to Calculator screen
-            Button(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier
-                    .padding(top = 16.dp)
-                    .fillMaxWidth(),
-                shape = CircleShape,
-                colors = ButtonColors(Color.White, Blue40, Color.White, Blue40)
-            ) {
-                Text(text = "Back to Calculator")
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                Button(
+                    onClick = {
+                        historyList = emptyList()
+                        onClearHistory()
+                    },
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(Color.Red)
+                ) {
+                    Text(text = "Clear All", color = Color.White, fontSize = 18.sp)
+                }
+
+                Button(
+                    onClick = { navController.popBackStack() },
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(Color.White)
+                ) {
+                    Text(text = "Back to Calculator", color = Color.Black, fontSize = 18.sp)
+                }
             }
         }
     }
